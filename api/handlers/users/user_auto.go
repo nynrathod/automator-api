@@ -10,6 +10,7 @@ import (
 	"github.com/nynrathod/automator-api/pkg/entities"
 	"github.com/nynrathod/automator-api/pkg/users"
 	UTL "github.com/nynrathod/automator-api/utilities"
+	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 	"math/big"
 	"net/http"
@@ -56,13 +57,18 @@ func VerifyEmail(service users.Service) fiber.Handler {
 		var requestBody entities.VerifyEmail
 		_ = c.BodyParser(&requestBody)
 
-		_, err := service.VerifyEmail(requestBody.Email)
-		if err != nil {
-			response := presenter.VerifyEmailError(err)
-			c.Status(response.(fiber.Map)["statusCode"].(int))
-
-			return c.JSON(fiber.Map{"status": response.(fiber.Map)["status"], "error": err.Error()})
+		_, existsErr := service.VerifyEmail(requestBody.Email, false)
+		fmt.Println("existsErr", existsErr)
+		if existsErr == nil {
+			fmt.Println("iiierr", existsErr)
+			c.Status(http.StatusConflict)
+			return c.JSON(presenter.UserRegisterErrResponse(mongo.WriteException{
+				WriteErrors: []mongo.WriteError{
+					{Code: 11000, Message: "Duplicate key error"},
+				},
+			}))
 		}
+
 		response := presenter.VerifyEmailSuccess(requestBody.Email)
 		return c.JSON(response)
 	}
@@ -80,47 +86,30 @@ func Login(service users.Service) fiber.Handler {
 
 		pass := input.Password
 		identity := input.Email
-		var userData *entities.User
-		userModel, err := new(entities.User), *new(error)
 
 		if isEmail(identity) {
-			userModel, err = service.VerifyEmail(identity)
-		} else {
-			//userModel, err = service.VerifyUserName(identity)
-		}
+			userModel, userErr := service.VerifyEmail(identity, true)
+			fmt.Println("userErr", userErr)
+			if userErr != nil {
 
-		if userModel == nil {
-			//fmt.Println("userdata", userModel.Password)
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": false, "message": "User not found",
-				"data": err.Error()})
-		} else {
-
-			userData = &entities.User{
-				UserId:   userModel.UserId,
-				Email:    userModel.Email,
-				Password: userModel.Password,
-				//CrypInitializationVector: userModel.CrypInitializationVector,
-				FirstName: userModel.FirstName,
-				LastName:  userModel.LastName,
-				//PrivateKey:               userModel.PrivateKey,
-				//CrypTag:                  userModel.CrypTag,
+				return c.Status(http.StatusUnauthorized).JSON(presenter.LoginError())
 			}
-		}
-		fmt.Println("userdata else", userData.Password)
-		if !CheckPasswordHash(pass, userData.Password) {
-			response := presenter.LoginError(userData)
-			statusCode := response["statusCode"].(int)
-			delete(response, "statusCode")
-			return c.Status(statusCode).JSON(response)
+			var userData *entities.User
+			userData = &entities.User{Password: userModel.Password, Email: userModel.Email}
+			fmt.Println("userdata else", userData.Password)
+
+			if !CheckPasswordHash(pass, userData.Password) {
+				response := presenter.LoginError()
+				return c.Status(http.StatusUnauthorized).JSON(response)
+			}
+
+			response := presenter.LoginSuccess(userData)
+
+			return c.JSON(response)
+
 		}
 
-		if err != nil {
-			return c.SendStatus(fiber.StatusInternalServerError)
-		}
-
-		response := presenter.LoginSuccess(userData)
-
-		return c.JSON(response)
+		return nil
 	}
 }
 
@@ -133,28 +122,32 @@ func Register(service users.Service) fiber.Handler {
 
 		// fmt.Println("reqbody: ", requestBody.VerifyToken)
 		if err != nil {
-			c.Status(http.StatusBadRequest)
-			return c.JSON(presenter.UserRegisterErrResponse(err))
-		}
-
-		existingUser, err := service.VerifyEmail(requestBody.Email)
-		if err == nil && existingUser != nil {
 			return c.Status(http.StatusConflict).JSON(fiber.Map{
-				"error": "Email is already in use",
+				"error": "Error parsing",
 			})
 		}
 
-		apiErrors := UTL.ValidateUser(&requestBody, authHeader)
-		if apiErrors != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"errors": apiErrors,
-			})
+		tokenError := UTL.ValidateUser(&requestBody, authHeader)
+		if tokenError != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(tokenError)
+		}
+
+		_, existsErr := service.VerifyEmail(requestBody.Email, false)
+		fmt.Println("existsErr", existsErr)
+		if existsErr == nil {
+			fmt.Println("iiierr", existsErr)
+			c.Status(http.StatusConflict)
+			return c.JSON(presenter.UserRegisterErrResponse(mongo.WriteException{
+				WriteErrors: []mongo.WriteError{
+					{Code: 11000, Message: "Duplicate key error"},
+				},
+			}))
 		}
 
 		result, err := service.Register(&requestBody)
 
 		if err != nil {
-			c.Status(http.StatusBadRequest)
+			c.Status(http.StatusInternalServerError)
 			return c.JSON(presenter.UserRegisterErrResponse(err))
 		}
 
@@ -184,6 +177,18 @@ func SendOtp(service users.Service) fiber.Handler {
 			return c.JSON(presenter.UserRegisterErrResponse(err))
 		}
 
+		authHeader := c.Get("Authorization")
+		if authHeader == "" {
+			print("anythingempty")
+			return c.Status(http.StatusForbidden).JSON(presenter.OtpSendError(http.StatusForbidden))
+		}
+
+		_, tokenErr := UTL.VerifyToken(requestBody.Email, authHeader)
+		if tokenErr != nil {
+			fmt.Println("incorrec")
+			return c.Status(http.StatusForbidden).JSON(presenter.OtpSendError(http.StatusForbidden))
+		}
+
 		otp, _ := GenerateOTP(6)
 
 		// Store the OTP in the map with the user's email
@@ -203,7 +208,7 @@ func SendOtp(service users.Service) fiber.Handler {
 		if err := r.ParseTemplate("api/handlers/template.html", templateData); err == nil {
 			_, _ = r.SendEmail()
 		}
-
+		fmt.Println("coming here")
 		go func() {
 			time.Sleep(5 * time.Minute)
 			otpMapMutex.Lock()
@@ -211,7 +216,7 @@ func SendOtp(service users.Service) fiber.Handler {
 			otpMapMutex.Unlock()
 		}()
 
-		return c.JSON("sa")
+		return c.JSON(presenter.OtpSendResponse(requestBody.Email))
 	}
 }
 
@@ -227,18 +232,29 @@ func VerifyOtp(service users.Service) fiber.Handler {
 		submittedOtp := requestBody.Otp
 		storedOTP, ok := otpMap[requestBody.Email]
 
+		authHeader := c.Get("Authorization")
+		if authHeader == "" {
+			print("anythingempty")
+			return c.Status(http.StatusForbidden).JSON(presenter.OtpVerificationError(http.StatusForbidden))
+		}
+
+		_, tokenErr := UTL.VerifyToken(requestBody.Email, authHeader)
+		if tokenErr != nil {
+			fmt.Println("incorrec")
+			return c.Status(http.StatusForbidden).JSON(presenter.OtpVerificationError(http.StatusForbidden))
+		}
+
 		if ok && storedOTP == submittedOtp {
 			otpMapMutex.Lock()
 			delete(otpMap, requestBody.Email)
 			otpMapMutex.Unlock()
-			response := presenter.OtpVerificationSuccess(requestBody.Email)
+			response := presenter.OtpVerificationSuccess(requestBody.Email, requestBody.VerifyType)
 			if requestBody.VerifyType == "login" {
-				//delete(response, "token")
 				response["isLogin"] = true
 			}
 			return c.JSON(response)
 		} else {
-			response := presenter.OtpVerificationError(requestBody.Email)
+			response := presenter.OtpVerificationError(http.StatusUnauthorized)
 			return c.Status(http.StatusUnauthorized).JSON(response)
 		}
 
@@ -251,12 +267,14 @@ func (r *Request) SendEmail() (bool, error) {
 	msg := []byte("From: Team Uoozer\r\n" + "To: " + strings.Join(r.to, ", ") + "\r\n" + subject + mime + "\n" + r.body)
 
 	addr := "smtp.gmail.com:587"
-
+	fmt.Println("onmail", config.EnvConfigs.SmtpEmail, config.EnvConfigs.SmtpToken)
 	auth = smtp.PlainAuth("", config.EnvConfigs.SmtpEmail, config.EnvConfigs.SmtpToken, "smtp.gmail.com")
 
 	if err := smtp.SendMail(addr, auth, config.EnvConfigs.SmtpEmail, r.to, msg); err != nil {
+		fmt.Println("mailerrr", err)
 		return false, err
 	}
+	fmt.Println("mail sent")
 	return true, nil
 }
 
