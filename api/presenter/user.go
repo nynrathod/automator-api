@@ -1,6 +1,7 @@
 package presenter
 
 import (
+	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/nynrathod/automator-api/pkg/entities"
@@ -14,64 +15,86 @@ import (
 )
 
 type User struct {
-	ID        primitive.ObjectID `bson:"_id"`
-	Email     string             `json:"email" bson:"email,omitempty"`
-	Password  string             `json:"password" bson:"password,omitempty"`
-	FirstName string             `json:"firstName"`
-	LastName  string             `json:"lastName"`
+	ID           primitive.ObjectID `bson:"_id"`
+	Email        string             `json:"email" bson:"email,omitempty"`
+	Password     string             `json:"password" bson:"password,omitempty"`
+	MobileNumber string             `json:"mobileNumber"`
+	FirstName    string             `json:"firstName"`
+	LastName     string             `json:"lastName"`
 	//CreatedAt time.Time          `json:"created_at"`
 	SecretKey string `json:"-"`
 }
 
 func UserRegisterResponse(data *entities.User) *fiber.Map {
+
+	additionalClaims := jwt.MapClaims{
+		"email": data.Email,
+		"exp":   1,
+	}
+	jwtToken, _ := UTL.GenerateJWT(additionalClaims)
+
 	return &fiber.Map{
-		"id":        data.ID,
-		"email":     data.Email,
-		"firstName": data.FirstName,
-		"lastName":  data.LastName,
-		//"privateKey": data.PrivateKey,
-		//"iv":         data.CrypInitializationVector,
-		//"tag":        data.CrypTag,
-		"status":     true,
-		"statusCode": http.StatusOK,
+		"status": UTL.RegisterSuccess,
+		"token":  jwtToken,
 	}
 }
 
-func UserProfileResponse(data *entities.User) *fiber.Map {
-	fmt.Println("pr", data)
-	if data == nil {
-		// User not found, return an error response
-		return &fiber.Map{
-			"status":     false,
-			"error":      "User not found",
-			"statusCode": http.StatusNotFound,
-		}
+func UserProfileResponse(result *entities.User) *fiber.Map {
+	//fmt.Println("pr", data)
+	additionalClaims := jwt.MapClaims{
+		"exp":          14400,
+		"id":           result.ID,
+		"mobileNumber": result.MobileNumber,
+		"firstName":    result.FirstName,
+		"lastName":     result.LastName,
+		"email":        result.Email,
 	}
-	user := fiber.Map{
-		"ID":        data.ID,
-		"email":     data.Email,
-		"firstName": data.FirstName,
-		"lastName":  data.LastName,
-		//"token":     "",
-		//"privateKey": data.PrivateKey,
-		//"iv":         data.CrypInitializationVector,
-		//"tag":        data.CrypTag,
-	}
+
+	jwtToken, _ := UTL.GenerateJWT(additionalClaims)
+
 	return &fiber.Map{
-		"data": user,
+		"status": UTL.ProfileSuccess,
+		"data": fiber.Map{
+			"id":           result.ID,
+			"mobileNumber": result.MobileNumber,
+			"firstName":    result.FirstName,
+			"lastName":     result.LastName,
+			"email":        result.Email,
+			"token":        jwtToken,
+		},
 	}
 }
 
 func UserRegisterErrResponse(err error) *fiber.Map {
+	var writeException mongo.WriteException
+	if errors.As(err, &writeException) {
+		for _, writeError := range writeException.WriteErrors {
+			if writeError.Code == 11000 {
+				return &fiber.Map{
+					"status": UTL.RegisterExists,
+					"error":  "Email already exists",
+				}
+			}
+		}
+	}
+
 	return &fiber.Map{
-		"error": err.Error(),
+		"status": UTL.RegisterSuccess,
 	}
 }
 
 func VerifyEmailSuccess(email string) interface{} {
+
+	additionalClaims := jwt.MapClaims{
+		"email": email,
+		"exp":   1,
+	}
+	jwtToken, _ := UTL.GenerateJWT(additionalClaims)
+
 	return fiber.Map{
 		"status": true,
 		"email":  email,
+		"token":  jwtToken,
 	}
 }
 
@@ -166,45 +189,92 @@ func VerifyTokenResponse(isValid bool) fiber.Map {
 //		}
 //	}
 func LoginSuccess(data *entities.User) fiber.Map {
+	fmt.Println("logingdata", data)
+
+	additionalClaims := jwt.MapClaims{
+		"email": data.Email,
+		"exp":   1,
+	}
+	jwtToken, _ := UTL.GenerateJWT(additionalClaims)
+
 	return fiber.Map{
-		"status":  true,
-		"message": "Password is valid",
-		//"statusCode": http.StatusOK,
-		"userId":    data.UserId,
-		"email":     data.Email,
-		"firstName": data.FirstName,
-		"lastName":  data.LastName,
-		//"privateKey": data.PrivateKey,
-		//"iv":         data.CrypInitializationVector,
-		//"tag":        data.CrypTag,
+		"status": UTL.LoginSuccess,
+		"token":  jwtToken,
 	}
 
 }
 
-func LoginError(data *entities.User) fiber.Map {
+func LoginError() fiber.Map {
 	return fiber.Map{
-		"status":     false,
-		"message":    "Invalid password",
-		"statusCode": http.StatusUnauthorized,
+		"status":  UTL.LoginWrongCredentials,
+		"message": "Wrong email or password",
 	}
 }
 
-func OtpVerificationSuccess(email string) fiber.Map {
+func OtpVerificationSuccess(email, verifyType string) fiber.Map {
+	exp := 3
+	status := UTL.OTPSignupSuccess
+
+	if verifyType == "login" {
+		exp = 1
+		status = UTL.OTPLoginSuccess
+	}
+
+	additionalClaims := jwt.MapClaims{
+		"email": email,
+		"exp":   exp,
+	}
+
+	jwtToken, _ := UTL.GenerateJWT(additionalClaims)
+
+	return fiber.Map{
+		"status": status,
+		"token":  jwtToken,
+	}
+}
+
+func OtpVerificationError(err int) fiber.Map {
+	if err == http.StatusUnauthorized {
+		return fiber.Map{
+			"status": UTL.OTPInvalidOTP,
+		}
+	}
+	return fiber.Map{
+		"status": UTL.OTPInvalidrequest,
+	}
+}
+
+func OtpSendError(err int) fiber.Map {
+	if err == http.StatusUnauthorized {
+		return fiber.Map{
+			"status": UTL.OTPInvalidOTP,
+		}
+	}
+	return fiber.Map{
+		"status": UTL.OTPInvalidrequest,
+	}
+}
+
+func OtpSendResponse(email string) fiber.Map {
 	additionalClaims := jwt.MapClaims{
 		"email": email,
 		"exp":   1,
 	}
+
 	jwtToken, _ := UTL.GenerateJWT(additionalClaims)
 	return fiber.Map{
-		"status":  true,
-		"message": "OTP is valid",
-		"token":   jwtToken,
+		"status": true,
+		"token":  jwtToken,
 	}
 }
 
-func OtpVerificationError(email string) fiber.Map {
+func GetProfileError(err int) fiber.Map {
+	if err == http.StatusUnauthorized {
+		return fiber.Map{
+			"status": UTL.ProfileInvalidRequest,
+		}
+	}
 	return fiber.Map{
-		"status":  false,
-		"message": "Invalid OTP",
+		"status": UTL.ProfileNotFound,
 	}
 }

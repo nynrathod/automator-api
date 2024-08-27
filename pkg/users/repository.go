@@ -12,7 +12,7 @@ import (
 )
 
 type Repository interface {
-	VerifyEmail(email string) (*entities.User, error)
+	VerifyEmail(email string, isLogin bool) (*entities.User, error)
 	Register(user *entities.User) (*entities.User, error)
 	GetUser(email string) (*entities.User, error)
 }
@@ -28,7 +28,8 @@ func NewRepo(collection *mongo.Collection) Repository {
 	}
 }
 
-func (r *repository) VerifyEmail(email string) (*entities.User, error) {
+func (r *repository) VerifyEmail(email string, isLogin bool) (*entities.User, error) {
+	fmt.Println("isLogin", isLogin)
 	// nonce := make([]byte, 12) // Generate a unique nonce for each encryption.
 	// if _, err := rand.Read(nonce); err != nil {
 	// 	log.Fatal("Failed to generate nonce:", err)
@@ -37,12 +38,23 @@ func (r *repository) VerifyEmail(email string) (*entities.User, error) {
 	filter := bson.M{"email": email}
 	var result entities.User
 	err := r.Collection.FindOne(context.Background(), filter).Decode(&result)
-	if err != nil {
+	if isLogin && err != nil {
+		fmt.Println("llerrr", err)
+		return nil, mongo.ErrNoDocuments
+	}
+	if isLogin {
+		fmt.Println("yeslog", &result)
+		return &result, nil
+	}
+
+	if err == nil {
+		fmt.Println("exitserr", err)
 		return nil, err
 	}
 
-	fmt.Println("myres", result)
-	return &result, nil
+	//fmt.Println("normal errr", err)
+	//fmt.Println("myres", result)
+	return nil, mongo.ErrNoDocuments
 }
 
 func (r *repository) Register(user *entities.User) (*entities.User, error) {

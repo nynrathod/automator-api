@@ -6,13 +6,14 @@ import (
 
 type (
 	User struct {
-		ID        primitive.ObjectID `bson:"_id"`
-		UserId    string             `json:"user_id" bson:"user_id, omitempty"`
-		Email     string             `json:"email" bson:"email,omitempty" validate:"required,email"`
-		UserName  string             `json:"userName" bson:"userName,omitempty"`
-		Password  string             `json:"password" bson:"password,omitempty" validate:"required"`
-		FirstName string             `json:"firstName" bson:"firstName,omitempty" validate:"required"`
-		LastName  string             `json:"lastName" bson:"lastName,omitempty" validate:"required"`
+		ID           primitive.ObjectID `bson:"_id"`
+		UserId       string             `json:"user_id" bson:"user_id, omitempty"`
+		Email        string             `json:"email" bson:"email,omitempty" validate:"required,email"`
+		UserName     string             `json:"userName" bson:"userName,omitempty"`
+		Password     string             `json:"password" bson:"password,omitempty" validate:"required"`
+		MobileNumber string             `json:"mobileNumber" bson:"mobileNumber,omitempty" validate:"required"`
+		FirstName    string             `json:"firstName" bson:"firstName,omitempty" validate:"required"`
+		LastName     string             `json:"lastName" bson:"lastName,omitempty" validate:"required"`
 		//SecretKey                string             `json:"secretKey" bson:"secretKey,omitempty"`
 		//PrivateKey               string             `json:"privateKey" bson:"privateKey,omitempty" validate:"required"`
 		//CrypInitializationVector string             `json:"cryptInitializationVector" bson:"cryptInitializationVector,omitempty" validate:"required"`
@@ -25,6 +26,7 @@ type (
 	UserErrors struct {
 		Param   string
 		Message string
+		Status  string `json:"status,omitempty"`
 	}
 
 	Login struct {

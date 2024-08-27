@@ -127,6 +127,10 @@ func VerifyToken(identity string, tokenString string) (*jwt.Token, error) {
 	// return aa, err
 }
 
+func intToPointer(i int) *int {
+	return &i
+}
+
 func ValidateUser(user *entities.User, authHeader string) []entities.UserErrors {
 
 	if authHeader == "" {
@@ -161,6 +165,7 @@ func ValidateUser(user *entities.User, authHeader string) []entities.UserErrors 
 		return append([]entities.UserErrors{}, entities.UserErrors{
 			Param:   "authorization",
 			Message: "Authorization header is wrong",
+			Status:  RegisterInvalidRequest,
 		})
 
 	}
