@@ -6,7 +6,7 @@ import (
 )
 
 type Service interface {
-	VerifyEmail(email string) (*entities.User, error)
+	VerifyEmail(email string, isLogin bool) (*entities.User, error)
 	Register(user *entities.User) (*entities.User, error)
 	GetUser(email string) (*entities.User, error)
 }
@@ -21,8 +21,8 @@ func NewService(r Repository) Service {
 	}
 }
 
-func (s *service) VerifyEmail(email string) (*entities.User, error) {
-	return s.repository.VerifyEmail(email)
+func (s *service) VerifyEmail(email string, isLogin bool) (*entities.User, error) {
+	return s.repository.VerifyEmail(email, isLogin)
 }
 
 func hashPassword(password string) (string, error) {
