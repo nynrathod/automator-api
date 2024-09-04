@@ -56,7 +56,7 @@ func InstallRouter(app fiber.Router, services AppServices) {
 	// other test apis
 	app.Post("/user/testname", func(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-			"message": "Hello from testname api",
+			"message": "Hello from testname api cicd",
 		})
 	})
 	app.Post("/user/test", users.TestApi(services.UserService))
