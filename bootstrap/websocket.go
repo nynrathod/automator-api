@@ -64,7 +64,7 @@ func SetupWebSocket(app *fiber.App, db *mongo.Database) {
 	})
 
 	socketio.On(socketio.EventMessage, func(ep *socketio.EventPayload) {
-		fmt.Println("Message", string(ep.Data))
+		//fmt.Println("Message", string(ep.Data))
 		// Access the WebSocket instance through the EventPayload
 		ws := ep.Kws
 		uuid := ws.UUID
@@ -170,7 +170,7 @@ func handleEvent(eventType string, data []byte, db *mongo.Database, uuid string)
 			return fmt.Errorf("error unmarshalling SMS_RECEIVE: %v", err)
 		}
 		//sms.UserId = ep.Kws.GetStringAttribute("user_id")
-		sms.StoreSms(smsData, db)
+		sms.StoreSms(smsData, db, uuid)
 		fmt.Println("Handling SMS_RECEIVE:", smsData.UserId)
 		// Perform operations like storing SMS
 	case "REQUEST_OTP":
