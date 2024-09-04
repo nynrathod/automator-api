@@ -15,6 +15,8 @@ type Repository interface {
 	VerifyEmail(email string, isLogin bool) (*entities.User, error)
 	Register(user *entities.User) (*entities.User, error)
 	GetUser(email string) (*entities.User, error)
+	AddUser(data *entities.User) (*entities.User, error)
+	ListUser(data string) (*entities.User, error)
 }
 
 type repository struct {
@@ -94,4 +96,39 @@ func (r *repository) GetUser(email string) (*entities.User, error) {
 	}
 
 	return &user, nil
+}
+
+func (r *repository) AddUser(data *entities.User) (*entities.User, error) {
+	fmt.Println("reportdata", data)
+	data.ID = primitive.NewObjectID()
+	////user.UserId = UTL.GenerateRandomID(14, 1)
+	_, err := r.Collection.InsertOne(context.Background(), data)
+
+	if err != nil {
+		fmt.Println("errr repo", err)
+		//return nil, err
+	}
+	//return user, nil
+
+	return data, nil
+
+}
+
+func (r *repository) ListUser(data string) (*entities.User, error) {
+	fmt.Println("reportdata", data)
+
+	////user.UserId = UTL.GenerateRandomID(14, 1)
+	var result entities.User
+	//filter := bson.D{{ "email": data}}
+	filter := bson.D{{"email", data}}
+	err := r.Collection.FindOne(context.Background(), filter).Decode(&result)
+
+	if err != nil {
+		fmt.Println("errr repo", err)
+		//return nil, err
+	}
+	//return user, nil
+
+	return &result, nil
+
 }

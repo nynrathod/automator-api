@@ -28,3 +28,10 @@ type OtpRequest struct {
 	AppName   string `json:"appName" bson:"appName" validate:"required"`
 	Event     string `json:"event" bson:"event" validate:"required"`
 }
+
+type OtpResponse struct {
+	Event string `json:"event" bson:"event,omitempty" validate:"required"`
+	Email string `json:"email" bson:"email,omitempty" validate:"required"`
+	App   string `json:"app" bson:"app" validate:"required"`
+	Otp   string `json:"otp" bson:"otp" validate:"required"`
+}

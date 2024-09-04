@@ -9,13 +9,14 @@ import (
 	"github.com/nynrathod/automator-api/pkg/entities"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
 )
 
 var ws *socketio.Websocket
 
 type Repository interface {
-	StoreSms(smsData *entities.Sms) (*entities.Sms, error)
+	StoreSms(smsData *entities.Sms, uuid string) (*entities.Sms, error)
 	ProcessOtpRequest(requestData *entities.OtpRequest, uuid context.Context) (*entities.OtpRequest, error)
 }
 
@@ -34,13 +35,13 @@ func NewMongoRepository(db *mongo.Database, collectionName string) Repository {
 	}
 }
 
-func (r *mongoRepository) StoreSms(smsData *entities.Sms) (*entities.Sms, error) {
+func (r *mongoRepository) StoreSms(smsData *entities.Sms, uuid string) (*entities.Sms, error) {
 	//fmt.Println("myEmail", smsData.Email)
 	//fmt.Println("myUserId", smsData.UserId)
 	//fmt.Println("myApp", smsData.App)
 	//fmt.Println("myOtp", smsData.Otp)
 	//fmt.Println("myTimestamp", smsData.TimeStamp)
-
+	fmt.Println("smsdata", smsData)
 	//document := bson.D{
 	//	{Key: "email", Value: smsData.Email},
 	//	{Key: "user_id", Value: smsData.UserId},
@@ -65,7 +66,17 @@ func (r *mongoRepository) StoreSms(smsData *entities.Sms) (*entities.Sms, error)
 		//return c.Status(fiber.StatusInternalServerError).SendString("Failed to insert document")
 	}
 	fmt.Printf("Insert result: %+v\n", res)
+	aa := map[string]string{
+		"type": "ack",
+	}
 
+	// Marshal the map to JSON
+	jsonData, err := json.Marshal(aa)
+	if err != nil {
+		fmt.Println("Error marshalling JSON:", err)
+		//return
+	}
+	ws.EmitTo(uuid, jsonData, socketio.TextMessage)
 	return smsData, nil
 
 	//return nil, nil
@@ -100,13 +111,32 @@ func (r *mongoRepository) DeleteDocument(filter bson.D) (*mongo.DeleteResult, er
 
 func (r *mongoRepository) ProcessOtpRequest(requestData *entities.OtpRequest, ctx context.Context) (*entities.OtpRequest, error) {
 
+	// ensure UUID found
 	uuid, ok := ctx.Value("UUID").(string)
 	if !ok {
 		return nil, fmt.Errorf("UUID not found in context")
 	}
 
-	var result entities.User
+	fmt.Println("requestData.AppName", requestData.AppName)
 
+	// Check if user has access of app
+	var userHasAccess entities.Sms // Replace with appropriate type
+	userHasAccessFilter := bson.D{
+		{"sharedWith", requestData.Requester},
+		{"app", requestData.AppName},
+	}
+	accErr := r.Collection.Database().Collection("shared_access").FindOne(
+		context.Background(),
+		userHasAccessFilter,
+		options.FindOne(),
+	).Decode(&userHasAccess)
+	if accErr != nil {
+		fmt.Println("accErr", accErr)
+		return nil, accErr
+	}
+
+	// Check if that user exits whose mobile number added
+	var result entities.User
 	filter := bson.D{{"mobileNumber", requestData.Recipient}}
 	errUser := r.UsersCollection.FindOne(context.Background(), filter).Decode(&result)
 	if errUser != nil {
@@ -117,22 +147,21 @@ func (r *mongoRepository) ProcessOtpRequest(requestData *entities.OtpRequest, ct
 		return nil, errUser
 	}
 
+	// filter to find sms in table
 	userIDStr := result.ID.Hex()
-
-	fmt.Println("founduser ", requestData.AppName)
-
-	var resultFromOtherCollection entities.Sms // Replace with appropriate type
+	var resultFromOtherCollection entities.OtpResponse
 	otherCollectionFilter := bson.D{
 		{"userId", userIDStr},
 		{"app", requestData.AppName},
 	}
 
-	time.Sleep(5 * time.Second)
+	//time.Sleep(5 * time.Second)
 
+	// Ping user if still connected else delete first sms matching with this request
+	// Retry because sms may need some time to receive and store in database
 	const maxRetries = 3
 	const retryDelay = 3 * time.Second
 	var errSms error
-	//var errDelete error
 
 	errWs := ws.EmitTo(uuid, []byte("your message"), socketio.TextMessage)
 	if errWs != nil {
@@ -157,6 +186,7 @@ func (r *mongoRepository) ProcessOtpRequest(requestData *entities.OtpRequest, ct
 		return nil, nil
 	}
 
+	// find  matching sms with retry
 	for i := 0; i < maxRetries; i++ {
 		errSms = r.Collection.FindOne(context.Background(), otherCollectionFilter).Decode(&resultFromOtherCollection)
 		if errSms == nil {
@@ -167,10 +197,13 @@ func (r *mongoRepository) ProcessOtpRequest(requestData *entities.OtpRequest, ct
 		time.Sleep(retryDelay)
 	}
 
+	// No return on sms not found
 	if errSms != nil {
 		fmt.Println("Error finding document in other collection:", errSms)
 		return nil, errSms
 	}
+
+	resultFromOtherCollection.Event = "OTP_RESPONSE"
 
 	jsonData, errMarshal := json.Marshal(resultFromOtherCollection)
 	if errMarshal != nil {
@@ -180,6 +213,7 @@ func (r *mongoRepository) ProcessOtpRequest(requestData *entities.OtpRequest, ct
 
 	fmt.Printf("Document found in other collection: %+v\n", string(jsonData))
 
+	// Once sms found emit to user and delete this document
 	errEmit := ws.EmitTo(uuid, jsonData, socketio.TextMessage)
 	if errEmit != nil {
 		fmt.Printf("Error emitting to WebSocket: %v\n", errEmit)

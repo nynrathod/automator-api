@@ -3,11 +3,10 @@ package presenter
 import (
 	"errors"
 	"fmt"
+	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/nynrathod/automator-api/pkg/entities"
 	UTL "github.com/nynrathod/automator-api/utilities"
-
-	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	//UTL "github.com/nynrathod/automator-api/utilities"
@@ -40,9 +39,9 @@ func UserRegisterResponse(data *entities.User) *fiber.Map {
 }
 
 func UserProfileResponse(result *entities.User) *fiber.Map {
-	//fmt.Println("pr", data)
+	//Expiry of 1 year
 	additionalClaims := jwt.MapClaims{
-		"exp":          14400,
+		"exp":          525600,
 		"id":           result.ID,
 		"mobileNumber": result.MobileNumber,
 		"firstName":    result.FirstName,
@@ -256,6 +255,24 @@ func OtpSendError(err int) fiber.Map {
 }
 
 func OtpSendResponse(email string) fiber.Map {
+
+	//token := jwt.New(jwt.SigningMethodHS256)
+	//
+	//claims := token.Claims.(jwt.MapClaims)
+	//claims["email"] = email
+	//claims["admin"] = true
+	//claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
+	//
+	//t, err := token.SignedString([]byte("af4777d4f6c64492b3969ddc3da9301e"))
+	//if err != nil {
+	//
+	//}
+	//
+	//return fiber.Map{
+	//	"status": true,
+	//	"token":  t,
+	//}
+
 	additionalClaims := jwt.MapClaims{
 		"email": email,
 		"exp":   1,

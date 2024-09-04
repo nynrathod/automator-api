@@ -14,6 +14,9 @@ type (
 		MobileNumber string             `json:"mobileNumber" bson:"mobileNumber,omitempty" validate:"required"`
 		FirstName    string             `json:"firstName" bson:"firstName,omitempty" validate:"required"`
 		LastName     string             `json:"lastName" bson:"lastName,omitempty" validate:"required"`
+		Access       string             `json:"access" bson:"access,omitempty"`
+
+		RequestEmail string `json:"requestEmail" bson:"requestEmail,omitempty"`
 		//SecretKey                string             `json:"secretKey" bson:"secretKey,omitempty"`
 		//PrivateKey               string             `json:"privateKey" bson:"privateKey,omitempty" validate:"required"`
 		//CrypInitializationVector string             `json:"cryptInitializationVector" bson:"cryptInitializationVector,omitempty" validate:"required"`
@@ -33,6 +36,7 @@ type (
 		Email    string `json:"email" bson:"email,omitempty" validate:"required"`
 		Password string `json:"password" bson:"password,omitempty" validate:"required"`
 		Otp      string `json:"otp" bson:"otp,omitempty" validate:"required,len=6"`
+		IsLogin  bool   `json:"isLogin" bson:"isLogin,omitempty"`
 		//VerifyToken string `json:"verifyToken" bson:"verifyToken,omitempty"  validate:"required"`
 	}
 	TokenVerify struct {
