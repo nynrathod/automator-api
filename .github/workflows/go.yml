@@ -22,7 +22,9 @@ jobs:
         go-version: '1.22.2'
 
     - name: Build
-      run: go build -o automator-api/main automator-api/main.go
+      run: |
+        cd automator-api
+        go build -o main main.go
 
     - name: Prepare SSH Key
       uses: webfactory/ssh-agent@v0.9.0
