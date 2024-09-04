@@ -28,13 +28,16 @@ jobs:
 
     - name: Deploy to EC2
       run: |
-        scp -o StrictHostKeyChecking=no main ubuntu@REDACTED_IP:/home/ubuntu/automator-api/main
         ssh -o StrictHostKeyChecking=no ubuntu@REDACTED_IP << 'EOF'
           pkill -f main || true
           mv /home/ubuntu/automator-api/main /home/ubuntu/automator-api/main-old || true
-          chmod +x /home/ubuntu/automator-api/main
-          nohup /home/ubuntu/automator-api/main > /home/ubuntu/automator-api/app.log 2>&1 &
         EOF
+        scp -o StrictHostKeyChecking=no main ubuntu@REDACTED_IP:/home/ubuntu/automator-api/main
+        ssh -o StrictHostKeyChecking=no ubuntu@REDACTED_IP << 'EOF'
+          chmod +x /home/ubuntu/automator-api/main
+          nohup /home/ubuntu/automator-api/main > /dev/null 2>&1 &
+        EOF
+
 
     - name: Clean up
       run: rm -f main
