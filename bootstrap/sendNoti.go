@@ -19,7 +19,7 @@ func SendNoti() {
 	}
 
 	ctx := context.Background()
-	client, err := app.Messaging(ctx)
+	_, err = app.Messaging(ctx)
 	if err != nil {
 		log.Fatalf("error getting Messaging client: %v\n", err)
 	}
@@ -41,10 +41,10 @@ func SendNoti() {
 	}
 
 	// Send a message to the device corresponding to the provided registration token.
-	response, err := client.Send(ctx, message)
-	if err != nil {
-		log.Fatalln("myerrror", err)
-	}
+	//response, err := client.Send(ctx, message)
+	//if err != nil {
+	//	log.Fatalln("myerrror", err)
+	//}
 	// Response is a message ID string.
-	fmt.Println("Successfully sent message:", response)
+	fmt.Println("Successfully sent message:", message)
 }

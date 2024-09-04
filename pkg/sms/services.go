@@ -10,7 +10,7 @@ import (
 )
 
 type Service interface {
-	StoreSms(smsData *entities.Sms) (*entities.Sms, error)
+	StoreSms(smsData *entities.Sms, uuid string) (*entities.Sms, error)
 	ProcessOtpRequest(requestData *entities.OtpRequest, uuid context.Context) (*entities.OtpRequest, error)
 }
 
@@ -25,17 +25,17 @@ func NewService(r Repository) Service {
 }
 
 func analyzeSms(message string) (string, string) {
-	// List of keywords to match exactly, as whole words
-	keywords := []string{
-		"shemaroome",
-		"sony liv",
-		"disney+ hotstar",
-		"jiocinema",
-		"epic on",
-		"hoichoi",
-		"discovery plus",
-		"etv win",
-		"zee5",
+	// Map of keywords to their corresponding values
+	keywordMappings := map[string]string{
+		"shemaroome":      "shemarooMe",
+		"sony liv":        "sonyLiv",
+		"disney+ hotstar": "disneyPlusHotstar",
+		"jiocinema":       "jioCinema",
+		"epic on":         "epicOn",
+		"hoichoi":         "hoichoi",
+		"discovery plus":  "discoveryPlus",
+		"etv win":         "etvWin",
+		"zee5":            "zee5",
 	}
 
 	// Convert message to lowercase for case-insensitive matching
@@ -45,17 +45,17 @@ func analyzeSms(message string) (string, string) {
 	otpPattern := regexp.MustCompile(`\b\d{4,6}\b`)
 
 	// Check for keywords
-	for _, keyword := range keywords {
+	for keyword, mappedValue := range keywordMappings {
 		if strings.Contains(message, keyword) {
 			// Extract OTP from the message
 			otp := otpPattern.FindString(message)
-			return keyword, otp
+			return mappedValue, otp // Return the mapped value and the OTP
 		}
 	}
 	return "", ""
 }
 
-func (s *service) StoreSms(smsData *entities.Sms) (*entities.Sms, error) {
+func (s *service) StoreSms(smsData *entities.Sms, uuid string) (*entities.Sms, error) {
 	now := time.Now()
 	expiryTime := now.Add(4 * time.Minute)
 	smsData.Expiry = expiryTime
@@ -72,7 +72,7 @@ func (s *service) StoreSms(smsData *entities.Sms) (*entities.Sms, error) {
 	if smsData.App != "" && smsData.Otp != "" {
 		fmt.Println("smsApp", smsData.App)
 		fmt.Println("smsOtp", smsData.Otp)
-		return s.repository.StoreSms(smsData)
+		return s.repository.StoreSms(smsData, uuid)
 	}
 
 	// If either App or Otp is empty, return an error or handle it appropriately

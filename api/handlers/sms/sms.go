@@ -5,12 +5,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nynrathod/automator-api/pkg/entities"
 	ser "github.com/nynrathod/automator-api/pkg/sms"
-	UTL "github.com/nynrathod/automator-api/utilities"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/net/context"
 )
 
-func StoreSms(smsData *entities.Sms, db *mongo.Database) (*entities.Sms, error) {
+func StoreSms(smsData *entities.Sms, db *mongo.Database, uuid string) (*entities.Sms, error) {
 
 	//fmt.Println("myEmail", smsData.Email)
 	//fmt.Println("myUserId", smsData.UserId)
@@ -26,19 +25,6 @@ func StoreSms(smsData *entities.Sms, db *mongo.Database) (*entities.Sms, error) 
 
 	fmt.Println("\ncalling handler", smsData)
 
-	authHeader := smsData.Token
-	if authHeader == "" {
-		print("anythingempty")
-		return nil, fiber.NewError(fiber.StatusUnauthorized, "Authorization header is required")
-	}
-
-	// Verify the token (assuming `VerifyToken` takes the email and token)
-	_, tokenErr := UTL.VerifyToken(smsData.Email, authHeader)
-	if tokenErr != nil {
-		fmt.Println("incorrec")
-		return nil, fiber.NewError(fiber.StatusUnauthorized, "Authorization header is incorrect")
-	}
-
 	fmt.Println("validall")
 
 	// Instantiate the service
@@ -46,7 +32,7 @@ func StoreSms(smsData *entities.Sms, db *mongo.Database) (*entities.Sms, error) 
 	// Instantiate the service with the repository
 	service := ser.NewService(repository)
 	// Store the SMS using the serviceZ
-	_, storeErr := service.StoreSms(smsData)
+	_, storeErr := service.StoreSms(smsData, uuid)
 	if storeErr != nil {
 		fmt.Println("errstore", storeErr)
 		return nil, fiber.NewError(fiber.StatusBadRequest)

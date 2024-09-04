@@ -68,7 +68,15 @@ func VerifyEmail(service users.Service) fiber.Handler {
 				},
 			}))
 		}
+		// Call SendOtp and check for success
+		success, err := SendOtp(requestBody.Email)
+		if err != nil || !success {
+			// Handle error if OTP sending fails
+			c.Status(http.StatusInternalServerError)
+			return c.JSON(presenter.UserRegisterErrResponse(err))
+		}
 
+		// If OTP was sent successfully, return success response
 		response := presenter.VerifyEmailSuccess(requestBody.Email)
 		return c.JSON(response)
 	}
@@ -101,6 +109,15 @@ func Login(service users.Service) fiber.Handler {
 			if !CheckPasswordHash(pass, userData.Password) {
 				response := presenter.LoginError()
 				return c.Status(http.StatusUnauthorized).JSON(response)
+			}
+			fmt.Println("input.IsLogin", input.IsLogin)
+			if input.IsLogin {
+				success, err := SendOtp(userData.Email)
+				if err != nil || !success {
+					// Handle error if OTP sending fails
+					c.Status(http.StatusInternalServerError)
+					return c.JSON(presenter.UserRegisterErrResponse(err))
+				}
 			}
 
 			response := presenter.LoginSuccess(userData)
@@ -168,56 +185,53 @@ func GenerateOTP(length int) (string, error) {
 	return string(buffer), nil
 }
 
-func SendOtp(service users.Service) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		var requestBody entities.User
-		err := c.BodyParser(&requestBody)
-		if err != nil {
-			c.Status(http.StatusBadRequest)
-			return c.JSON(presenter.UserRegisterErrResponse(err))
-		}
-
-		authHeader := c.Get("Authorization")
-		if authHeader == "" {
-			print("anythingempty")
-			return c.Status(http.StatusForbidden).JSON(presenter.OtpSendError(http.StatusForbidden))
-		}
-
-		_, tokenErr := UTL.VerifyToken(requestBody.Email, authHeader)
-		if tokenErr != nil {
-			fmt.Println("incorrec")
-			return c.Status(http.StatusForbidden).JSON(presenter.OtpSendError(http.StatusForbidden))
-		}
-
-		otp, _ := GenerateOTP(6)
-
-		// Store the OTP in the map with the user's email
-		otpMapMutex.Lock()
-		otpMap[requestBody.Email] = otp
-		otpMapMutex.Unlock()
-
-		templateData := struct {
-			Otp string
-			URL string
-		}{
-			Otp: otp,
-			URL: "http://yuezers.app",
-		}
-		r := NewRequest([]string{requestBody.Email}, "OTP verification from yuezers", "")
-		r.ParseTemplate("api/handlers/template.html", templateData)
-		if err := r.ParseTemplate("api/handlers/template.html", templateData); err == nil {
-			_, _ = r.SendEmail()
-		}
-		fmt.Println("coming here")
-		go func() {
-			time.Sleep(5 * time.Minute)
-			otpMapMutex.Lock()
-			delete(otpMap, requestBody.Email)
-			otpMapMutex.Unlock()
-		}()
-
-		return c.JSON(presenter.OtpSendResponse(requestBody.Email))
+func SendOtp(email string) (bool, error) {
+	// Generate the OTP
+	otp, err := GenerateOTP(6)
+	if err != nil {
+		return false, fmt.Errorf("failed to generate OTP: %w", err)
 	}
+
+	// Store the OTP in the map with the user's email
+	otpMapMutex.Lock()
+	otpMap[email] = otp
+	otpMapMutex.Unlock()
+
+	// Prepare the email template data
+	templateData := struct {
+		Otp string
+		URL string
+	}{
+		Otp: otp,
+		URL: "http://yuezers.app",
+	}
+
+	// Create the email request
+	r := NewRequest([]string{email}, "OTP verification from yuezers", "")
+
+	// Parse the email template
+	if err := r.ParseTemplate("api/handlers/template.html", templateData); err != nil {
+		return false, fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	// Send the email
+	if _, err := r.SendEmail(); err != nil {
+		return false, fmt.Errorf("failed to send email: %w", err)
+	}
+
+	// Log success
+	fmt.Println("OTP sent successfully")
+
+	// Start a goroutine to delete the OTP after 5 minutes
+	go func() {
+		time.Sleep(5 * time.Minute)
+		otpMapMutex.Lock()
+		delete(otpMap, email)
+		otpMapMutex.Unlock()
+	}()
+
+	// If everything went well, return true
+	return true, nil
 }
 
 func VerifyOtp(service users.Service) fiber.Handler {
@@ -231,18 +245,6 @@ func VerifyOtp(service users.Service) fiber.Handler {
 
 		submittedOtp := requestBody.Otp
 		storedOTP, ok := otpMap[requestBody.Email]
-
-		authHeader := c.Get("Authorization")
-		if authHeader == "" {
-			print("anythingempty")
-			return c.Status(http.StatusForbidden).JSON(presenter.OtpVerificationError(http.StatusForbidden))
-		}
-
-		_, tokenErr := UTL.VerifyToken(requestBody.Email, authHeader)
-		if tokenErr != nil {
-			fmt.Println("incorrec")
-			return c.Status(http.StatusForbidden).JSON(presenter.OtpVerificationError(http.StatusForbidden))
-		}
 
 		if ok && storedOTP == submittedOtp {
 			otpMapMutex.Lock()

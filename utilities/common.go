@@ -133,6 +133,8 @@ func intToPointer(i int) *int {
 
 func ValidateUser(user *entities.User, authHeader string) []entities.UserErrors {
 
+	fmt.Println("user", user)
+
 	if authHeader == "" {
 		return append([]entities.UserErrors{}, entities.UserErrors{
 			Param:   "authorization",
@@ -144,6 +146,9 @@ func ValidateUser(user *entities.User, authHeader string) []entities.UserErrors 
 	err := validate.Struct(user)
 
 	if err != nil {
+
+		fmt.Println("regerr", err)
+
 		var apiErrors []entities.UserErrors
 		validationErrors, ok := err.(validator.ValidationErrors)
 		if ok {
@@ -158,17 +163,17 @@ func ValidateUser(user *entities.User, authHeader string) []entities.UserErrors 
 		return apiErrors
 	}
 
-	_, tokenErr := VerifyToken(user.Email, authHeader)
-	if tokenErr != nil {
-		fmt.Println("login err", tokenErr)
-
-		return append([]entities.UserErrors{}, entities.UserErrors{
-			Param:   "authorization",
-			Message: "Authorization header is wrong",
-			Status:  RegisterInvalidRequest,
-		})
-
-	}
+	//_, tokenErr := VerifyToken(user.Email, authHeader)
+	//if tokenErr != nil {
+	//	fmt.Println("login err", tokenErr)
+	//
+	//	return append([]entities.UserErrors{}, entities.UserErrors{
+	//		Param:   "authorization",
+	//		Message: "Authorization header is wrong",
+	//		Status:  RegisterInvalidRequest,
+	//	})
+	//
+	//}
 
 	return nil // No validation errors
 }
