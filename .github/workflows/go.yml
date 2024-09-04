@@ -22,7 +22,7 @@ jobs:
         go-version: '1.22.2'
 
     - name: Build
-      run: go build -o automator-api/main ./automator-api/main.go
+      run: go build -o automator-api/main automator-api/main.go
 
     - name: Prepare SSH Key
       uses: webfactory/ssh-agent@v0.9.0
@@ -31,7 +31,7 @@ jobs:
 
     - name: Deploy to EC2
       run: |
-        scp -o StrictHostKeyChecking=no automator-api/main ubuntu@${{ secrets.EC2_PUBLIC_IP }}:/home/ubuntu/automator-api/main
+        scp -o StrictHostKeyChecking=no automator-api/main ubuntu@REDACTED_IP:/home/ubuntu/automator-api/main
         ssh -o StrictHostKeyChecking=no ubuntu@REDACTED_IP << 'EOF'
           pkill -f main || true
           mv /home/ubuntu/automator-api/main /home/ubuntu/automator-api/main-old || true
@@ -39,6 +39,5 @@ jobs:
           nohup /home/ubuntu/automator-api/main > /dev/null 2>&1 &
         EOF
 
-
     - name: Clean up
-      run: rm -f main
+      run: rm -f automator-api/main
