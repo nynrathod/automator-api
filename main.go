@@ -2,9 +2,11 @@ package main
 
 import (
 	"crypto/tls"
+	"fmt"
 	"github.com/nynrathod/automator-api/bootstrap"
 	"golang.org/x/crypto/acme/autocert"
 	"log"
+	"os"
 )
 
 func main() {
@@ -14,6 +16,8 @@ func main() {
 	// It's recommended to use it's staging environment to test the code:
 	// https://letsencrypt.org/docs/staging-environment/
 
+	//isLocal := os.Getenv("ENV") == "local"
+	fmt.Println("envmy", os.Getenv("ENV"))
 	// Certificate manager
 	m := &autocert.Manager{
 		Prompt: autocert.AcceptTOS,
