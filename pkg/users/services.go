@@ -1,7 +1,6 @@
 package users
 
 import (
-	"fmt"
 	"github.com/nynrathod/automator-api/pkg/entities"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -35,15 +34,8 @@ func hashPassword(password string) (string, error) {
 }
 
 func (s *service) Register(user *entities.User) (*entities.User, error) {
-	//encryptedUser, err := encryptUserData(user)
-	//if err != nil {
-	//	return encryptedUser, err
-	//}
-
 	hash, _ := hashPassword(user.Password)
-
 	user.Password = hash
-
 	return s.repository.Register(user)
 }
 
@@ -52,11 +44,9 @@ func (s *service) GetUser(email string) (*entities.User, error) {
 }
 
 func (s *service) AddUser(data *entities.User) (*entities.User, error) {
-	fmt.Println("servicedata", data)
 	return s.repository.AddUser(data)
 }
 
 func (s *service) ListUser(data string) (*entities.User, error) {
-	fmt.Println("servicedata", data)
 	return s.repository.ListUser(data)
 }

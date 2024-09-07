@@ -1,7 +1,6 @@
 package access
 
 import (
-	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/nynrathod/automator-api/pkg/access"
 	"github.com/nynrathod/automator-api/pkg/entities"
@@ -19,7 +18,7 @@ func ToggleAccess(service access.Service) fiber.Handler {
 
 		_, handlerErr := service.ToggleAccess(requestBody)
 		if handlerErr != nil {
-			fmt.Println("handlerErr", handlerErr)
+			//fmt.Println("handlerErr", handlerErr)
 			return nil
 		}
 		return nil

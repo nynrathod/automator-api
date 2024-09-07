@@ -31,19 +31,16 @@ func GenerateRandomID(length int, userType int) string {
 	}
 
 	randomID := make([]byte, length)
-
 	_, err := rand.Read(randomID)
 	if err != nil {
 		return ""
 	}
 
-	// Use the specified charset
 	encoded := make([]byte, length)
 	for i := range encoded {
 		encoded[i] = charset[int(randomID[i])%len(charset)]
 	}
 
-	// Add timestamp for both user types
 	timestamp := fmt.Sprintf("%v", time.Now().UnixNano())
 	remainingSpace := length - len(encoded)
 	if remainingSpace > 0 {
@@ -57,7 +54,6 @@ func GenerateJWT(additionalClaims jwt.MapClaims) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
 
-	// Add additional claims
 	for key, value := range additionalClaims {
 		if key != "exp" {
 			claims[key] = value
@@ -93,7 +89,6 @@ func VerifyToken(identity string, tokenString string) (*jwt.Token, error) {
 			return nil, fmt.Errorf("error extracting claims")
 		}
 
-		// Now you can access individual claims from the map
 		identityClaim, ok := claims["email"].(string)
 		if !ok {
 			return nil, fmt.Errorf("error extracting email claim")
@@ -103,12 +98,10 @@ func VerifyToken(identity string, tokenString string) (*jwt.Token, error) {
 			return nil, fmt.Errorf("email mismatch: %s (token) vs %s (provided)", identityClaim, identity)
 		}
 
-		// Check the signing method
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		// Provide the key used for signing
 		return []byte(config.EnvConfigs.JWTSecrete), nil
 	})
 
@@ -117,23 +110,15 @@ func VerifyToken(identity string, tokenString string) (*jwt.Token, error) {
 		return nil, fmt.Errorf("error parsing token: %v", err)
 	}
 
-	// Check if the token is valid
 	if !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}
 
 	return token, err
 
-	// return aa, err
-}
-
-func intToPointer(i int) *int {
-	return &i
 }
 
 func ValidateUser(user *entities.User, authHeader string) []entities.UserErrors {
-
-	fmt.Println("user", user)
 
 	if authHeader == "" {
 		return append([]entities.UserErrors{}, entities.UserErrors{
@@ -146,34 +131,15 @@ func ValidateUser(user *entities.User, authHeader string) []entities.UserErrors 
 	err := validate.Struct(user)
 
 	if err != nil {
-
-		fmt.Println("regerr", err)
-
 		var apiErrors []entities.UserErrors
 		validationErrors, ok := err.(validator.ValidationErrors)
 		if ok {
 			for _, fe := range validationErrors {
-				//// Skip the field "verifyToken" in the loop
-				//if fe.Field() == "VerifyToken" {
-				//	continue
-				//}
 				apiErrors = append(apiErrors, entities.UserErrors{Param: strings.ToLower(fe.Field()), Message: MsgForTag(fe)})
 			}
 		}
 		return apiErrors
 	}
-
-	//_, tokenErr := VerifyToken(user.Email, authHeader)
-	//if tokenErr != nil {
-	//	fmt.Println("login err", tokenErr)
-	//
-	//	return append([]entities.UserErrors{}, entities.UserErrors{
-	//		Param:   "authorization",
-	//		Message: "Authorization header is wrong",
-	//		Status:  RegisterInvalidRequest,
-	//	})
-	//
-	//}
 
 	return nil // No validation errors
 }
