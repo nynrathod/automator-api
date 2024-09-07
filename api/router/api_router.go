@@ -81,8 +81,3 @@ func InstallRouter(app fiber.Router, services AppServices) {
 	})
 
 }
-
-//
-//func NewApiRouter() *ApiRouter {
-//	return &ApiRouter{}
-//}

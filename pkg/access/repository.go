@@ -31,7 +31,6 @@ func NewRepo(collection *mongo.Collection) Repository {
 func (r *repository) ToggleAccess(data *entities.Access) (any, error) {
 	collection := r.Collection
 
-	// Create a filter to find the document based on the given fields except 'access'
 	filter := bson.M{
 		"appOwner":   data.AppOwner,
 		"sharedWith": data.SharedWith,
@@ -44,7 +43,6 @@ func (r *repository) ToggleAccess(data *entities.Access) (any, error) {
 
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			// No document found, insert a new document
 			storageData := &entities.Access{
 				AppOwner:   data.AppOwner,
 				SharedWith: data.SharedWith,
@@ -55,21 +53,17 @@ func (r *repository) ToggleAccess(data *entities.Access) (any, error) {
 
 			_, err := collection.InsertOne(context.Background(), storageData)
 			if err != nil {
-				fmt.Println("Error inserting document:", err)
+				//fmt.Println("Error inserting document:", err)
 				return nil, err
 			}
 
 			return storageData, nil
 		} else {
-			// Some other error occurred
-			fmt.Println("Error finding document:", err)
+			//fmt.Println("Error finding document:", err)
 			return nil, err
 		}
 	}
 
-	fmt.Println("ffres", foundDocument)
-	// Document found, update the 'access' field
-	// Ensure boolean inversion works correctly
 	updatedAccess := data.Access
 	update := bson.M{
 		"$set": bson.M{
@@ -79,12 +73,12 @@ func (r *repository) ToggleAccess(data *entities.Access) (any, error) {
 
 	result, err := collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
-		fmt.Println("Error updating document:", err)
+		//fmt.Println("Error updating document:", err)
 		return nil, err
 	}
 
 	if result.ModifiedCount == 0 {
-		fmt.Println("No document updated, possibly no change needed.")
+		//fmt.Println("No document updated, possibly no change needed.")
 	}
 
 	// Optionally return the updated document or some confirmation
@@ -97,8 +91,6 @@ func (r *repository) ToggleAccess(data *entities.Access) (any, error) {
 }
 
 func (r *repository) SharedUser(data *entities.Access) (any, error) {
-	fmt.Println("reportdata", data)
-
 	var accessResults []entities.Access
 	filter := bson.D{
 		{"appOwner", data.AppOwner},
@@ -107,20 +99,19 @@ func (r *repository) SharedUser(data *entities.Access) (any, error) {
 
 	cursor, errIfn := r.Collection.Find(context.Background(), filter)
 	if errIfn != nil {
-		fmt.Println("errIfn", errIfn)
+		//fmt.Println("errIfn", errIfn)
 		return nil, errIfn
 	}
 
 	if errIfn = cursor.All(context.TODO(), &accessResults); errIfn != nil {
-		fmt.Println("errCur", errIfn)
+		//fmt.Println("errCur", errIfn)
 		return nil, errIfn
 	}
 
-	fmt.Println("findall", accessResults)
+	//fmt.Println("findall", accessResults)
 
 	var userResults []entities.User
 	for _, access := range accessResults {
-		//fmt.Println("access.SharedWith", access)
 		var user entities.User
 
 		objectID, err := primitive.ObjectIDFromHex(access.SharedWith)
@@ -135,10 +126,8 @@ func (r *repository) SharedUser(data *entities.Access) (any, error) {
 			{"email", 1},
 			{"firstName", 1},
 			{"lastName", 1},
-			// Add other fields as necessary
 		}
 
-		// FindOne with projection
 		uErr := r.Collection.Database().Collection("users").FindOne(
 			context.Background(),
 			userFilter,
@@ -146,30 +135,25 @@ func (r *repository) SharedUser(data *entities.Access) (any, error) {
 		).Decode(&user)
 
 		if uErr != nil {
-			fmt.Println("usererrr", uErr)
+			//fmt.Println("usererrr", uErr)
 			if uErr == mongo.ErrNoDocuments {
-				fmt.Println("No document found for filter:", userFilter)
-				continue // Skip if user not found
+				//fmt.Println("No document found for filter:", userFilter)
+				continue
 			}
 			return nil, uErr
 		}
 
-		// Embed access data directly into the user struct
 		user.Access = access.Access
 
-		// Append user to userResults slice
 		userResults = append(userResults, user)
 	}
 
-	fmt.Println("userDetails", userResults)
+	//fmt.Println("userDetails", userResults)
 
-	// Return the detailed user information with access data embedded
 	return userResults, nil
 }
 
 func (r *repository) SharedAccess(data *entities.Access) (any, error) {
-	fmt.Println("reportdata", data)
-
 	var accessResults []entities.Access
 	filter := bson.D{
 		{"sharedWith", data.SharedWith},
@@ -177,16 +161,16 @@ func (r *repository) SharedAccess(data *entities.Access) (any, error) {
 
 	cursor, errIfn := r.Collection.Find(context.Background(), filter)
 	if errIfn != nil {
-		fmt.Println("errIfn", errIfn)
+		//fmt.Println("errIfn", errIfn)
 		return nil, errIfn
 	}
 
 	if errIfn = cursor.All(context.TODO(), &accessResults); errIfn != nil {
-		fmt.Println("errCur", errIfn)
+		//fmt.Println("errCur", errIfn)
 		return nil, errIfn
 	}
 
-	fmt.Println("findall", accessResults)
+	//fmt.Println("findall", accessResults)
 
 	return accessResults, nil
 }

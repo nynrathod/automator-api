@@ -58,9 +58,9 @@ func VerifyEmail(service users.Service) fiber.Handler {
 		_ = c.BodyParser(&requestBody)
 
 		_, existsErr := service.VerifyEmail(requestBody.Email, false)
-		fmt.Println("existsErr", existsErr)
+		//fmt.Println("existsErr", existsErr)
 		if existsErr == nil {
-			fmt.Println("iiierr", existsErr)
+			//fmt.Println("iiierr", existsErr)
 			c.Status(http.StatusConflict)
 			return c.JSON(presenter.UserRegisterErrResponse(mongo.WriteException{
 				WriteErrors: []mongo.WriteError{
@@ -68,15 +68,13 @@ func VerifyEmail(service users.Service) fiber.Handler {
 				},
 			}))
 		}
-		// Call SendOtp and check for success
+
 		success, err := SendOtp(requestBody.Email)
 		if err != nil || !success {
-			// Handle error if OTP sending fails
 			c.Status(http.StatusInternalServerError)
 			return c.JSON(presenter.UserRegisterErrResponse(err))
 		}
 
-		// If OTP was sent successfully, return success response
 		response := presenter.VerifyEmailSuccess(requestBody.Email)
 		return c.JSON(response)
 	}
@@ -97,24 +95,22 @@ func Login(service users.Service) fiber.Handler {
 
 		if isEmail(identity) {
 			userModel, userErr := service.VerifyEmail(identity, true)
-			fmt.Println("userErr", userErr)
+			//fmt.Println("userErr", userErr)
 			if userErr != nil {
-
 				return c.Status(http.StatusUnauthorized).JSON(presenter.LoginError())
 			}
-			var userData *entities.User
-			userData = &entities.User{Password: userModel.Password, Email: userModel.Email}
-			fmt.Println("userdata else", userData.Password)
+
+			userData := &entities.User{Password: userModel.Password, Email: userModel.Email}
+			//fmt.Println("userdata else", userData.Password)
 
 			if !CheckPasswordHash(pass, userData.Password) {
 				response := presenter.LoginError()
 				return c.Status(http.StatusUnauthorized).JSON(response)
 			}
-			fmt.Println("input.IsLogin", input.IsLogin)
+			//fmt.Println("input.IsLogin", input.IsLogin)
 			if input.IsLogin {
 				success, err := SendOtp(userData.Email)
 				if err != nil || !success {
-					// Handle error if OTP sending fails
 					c.Status(http.StatusInternalServerError)
 					return c.JSON(presenter.UserRegisterErrResponse(err))
 				}
@@ -123,9 +119,7 @@ func Login(service users.Service) fiber.Handler {
 			response := presenter.LoginSuccess(userData)
 
 			return c.JSON(response)
-
 		}
-
 		return nil
 	}
 }
@@ -137,7 +131,6 @@ func Register(service users.Service) fiber.Handler {
 
 		authHeader := c.Get("Authorization")
 
-		// fmt.Println("reqbody: ", requestBody.VerifyToken)
 		if err != nil {
 			return c.Status(http.StatusConflict).JSON(fiber.Map{
 				"error": "Error parsing",
@@ -150,9 +143,9 @@ func Register(service users.Service) fiber.Handler {
 		}
 
 		_, existsErr := service.VerifyEmail(requestBody.Email, false)
-		fmt.Println("existsErr", existsErr)
+		//fmt.Println("existsErr", existsErr)
 		if existsErr == nil {
-			fmt.Println("iiierr", existsErr)
+			//fmt.Println("iiierr", existsErr)
 			c.Status(http.StatusConflict)
 			return c.JSON(presenter.UserRegisterErrResponse(mongo.WriteException{
 				WriteErrors: []mongo.WriteError{
@@ -162,7 +155,6 @@ func Register(service users.Service) fiber.Handler {
 		}
 
 		result, err := service.Register(&requestBody)
-
 		if err != nil {
 			c.Status(http.StatusInternalServerError)
 			return c.JSON(presenter.UserRegisterErrResponse(err))
@@ -186,43 +178,35 @@ func GenerateOTP(length int) (string, error) {
 }
 
 func SendOtp(email string) (bool, error) {
-	// Generate the OTP
 	otp, err := GenerateOTP(6)
 	if err != nil {
 		return false, fmt.Errorf("failed to generate OTP: %w", err)
 	}
 
-	// Store the OTP in the map with the user's email
 	otpMapMutex.Lock()
 	otpMap[email] = otp
 	otpMapMutex.Unlock()
 
-	// Prepare the email template data
 	templateData := struct {
 		Otp string
 		URL string
 	}{
 		Otp: otp,
-		URL: "http://yuezers.app",
+		URL: "https://uoozer.app",
 	}
 
-	// Create the email request
-	r := NewRequest([]string{email}, "OTP verification from yuezers", "")
+	r := NewRequest([]string{email}, "OTP verification from Uoozer", "")
 
-	// Parse the email template
-	if err := r.ParseTemplate("api/handlers/template.html", templateData); err != nil {
+	if err := r.ParseTemplate("api/handlers/mail/template.html", templateData); err != nil {
 		return false, fmt.Errorf("failed to parse template: %w", err)
 	}
 
-	// Send the email
 	if _, err := r.SendEmail(); err != nil {
 		return false, fmt.Errorf("failed to send email: %w", err)
 	}
 
-	// Log success
-	fmt.Println("OTP sent successfully")
+	//fmt.Println("OTP sent successfully")
 
-	// Start a goroutine to delete the OTP after 5 minutes
 	go func() {
 		time.Sleep(5 * time.Minute)
 		otpMapMutex.Lock()
@@ -230,7 +214,6 @@ func SendOtp(email string) (bool, error) {
 		otpMapMutex.Unlock()
 	}()
 
-	// If everything went well, return true
 	return true, nil
 }
 
@@ -269,14 +252,14 @@ func (r *Request) SendEmail() (bool, error) {
 	msg := []byte("From: Team Uoozer\r\n" + "To: " + strings.Join(r.to, ", ") + "\r\n" + subject + mime + "\n" + r.body)
 
 	addr := "smtp.gmail.com:587"
-	fmt.Println("onmail", config.EnvConfigs.SmtpEmail, config.EnvConfigs.SmtpToken)
+	//fmt.Println("onmail", config.EnvConfigs.SmtpEmail, config.EnvConfigs.SmtpToken)
 	auth = smtp.PlainAuth("", config.EnvConfigs.SmtpEmail, config.EnvConfigs.SmtpToken, "smtp.gmail.com")
 
 	if err := smtp.SendMail(addr, auth, config.EnvConfigs.SmtpEmail, r.to, msg); err != nil {
-		fmt.Println("mailerrr", err)
+		//fmt.Println("mailerrr", err)
 		return false, err
 	}
-	fmt.Println("mail sent")
+	//fmt.Println("mail sent")
 	return true, nil
 }
 
