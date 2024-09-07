@@ -2,14 +2,12 @@ package presenter
 
 import (
 	"errors"
-	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/nynrathod/automator-api/pkg/entities"
 	UTL "github.com/nynrathod/automator-api/utilities"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	//UTL "github.com/nynrathod/automator-api/utilities"
 	"net/http"
 )
 
@@ -111,33 +109,6 @@ func VerifyEmailError(v interface{}) interface{} {
 	}
 }
 
-// var secretKey = config.EnvConfigs.JWTSecrete
-
-// func verifyJWT(tokenString string) (*jwt.Token, error) {
-// 	// Parse the token
-// 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-// 		// Check the signing method
-// 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-// 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-// 		}
-
-// 		// Provide the key used for signing
-// 		return []byte(config.EnvConfigs.JWTSecrete), nil
-// 	})
-
-// 	// Check for parsing errors
-// 	if err != nil {
-// 		return nil, fmt.Errorf("error parsing token: %v", err)
-// 	}
-
-// 	// Check if the token is valid
-// 	if !token.Valid {
-// 		return nil, fmt.Errorf("invalid token")
-// 	}
-
-// 	return token, nil
-// }
-
 func VerifyTokenResponse(isValid bool) fiber.Map {
 
 	if isValid {
@@ -154,42 +125,7 @@ func VerifyTokenResponse(isValid bool) fiber.Map {
 	}
 }
 
-//	func OtpVerificationResponse(email string, isValid bool) fiber.Map {
-//		// fmt.Println("isValid", email)
-//
-//		additionalClaims := jwt.MapClaims{
-//			"identity": email,
-//			"exp":      5,
-//		}
-//		jwtToken, _ := UTL.GenerateJWT(additionalClaims)
-//		// fmt.Println("jwtToken", jwtToken)
-//		// validatedToken, err := verifyJWT(jwtToken)
-//		// if err != nil {
-//		// 	fmt.Println("Token validation failed:", err)
-//		// 	// Handle the error, e.g., return an error response
-//		// 	return nil
-//		// }
-//
-//		// // Token is valid, you can use validatedToken.Claims to access the claims
-//		// fmt.Println("Token is valid. Claims:", validatedToken.Claims)
-//		if isValid {
-//			return fiber.Map{
-//				"status":     true,
-//				"message":    "OTP is valid",
-//				"token":      jwtToken,
-//				"statusCode": http.StatusOK,
-//			}
-//		} else {
-//			return fiber.Map{
-//				"status":     false,
-//				"message":    "Invalid OTP",
-//				"statusCode": http.StatusUnauthorized,
-//			}
-//		}
-//	}
 func LoginSuccess(data *entities.User) fiber.Map {
-	fmt.Println("logingdata", data)
-
 	additionalClaims := jwt.MapClaims{
 		"email": data.Email,
 		"exp":   1,
@@ -255,24 +191,6 @@ func OtpSendError(err int) fiber.Map {
 }
 
 func OtpSendResponse(email string) fiber.Map {
-
-	//token := jwt.New(jwt.SigningMethodHS256)
-	//
-	//claims := token.Claims.(jwt.MapClaims)
-	//claims["email"] = email
-	//claims["admin"] = true
-	//claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-	//
-	//t, err := token.SignedString([]byte("af4777d4f6c64492b3969ddc3da9301e"))
-	//if err != nil {
-	//
-	//}
-	//
-	//return fiber.Map{
-	//	"status": true,
-	//	"token":  t,
-	//}
-
 	additionalClaims := jwt.MapClaims{
 		"email": email,
 		"exp":   1,

@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	jwtware "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -24,7 +23,6 @@ func Protected() fiber.Handler {
 			}
 
 			userToken := c.Locals("user").(*jwt.Token)
-			fmt.Println("userToken", userToken.Raw)
 			claims := userToken.Claims.(jwt.MapClaims)
 
 			email, _ := claims["email"].(string)
